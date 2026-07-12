@@ -1,0 +1,23 @@
+# requirements-project.txt
+# Minimal, version-pinned requirements to reproduce your QUNet environment for this repo.
+# Use:   pip install -r requirements-project.txt
+# Notes:
+# - PyTorch wheels include the needed CUDA runtime (your current setup uses CUDA 12.6).
+# - If another machine has only CPU, add:  --index-url https://download.pytorch.org/whl/cpu  when installing torch/vision/audio.
+
+torch==2.7.0
+torchvision==0.22.0
+torchaudio==2.7.0
+
+numpy==1.26.4
+scipy==1.13.1
+matplotlib==3.9.1
+pandas==2.2.3
+h5py==3.13.0
+scikit-learn==1.6.1
+tqdm==4.67.1
+opencv-python==4.11.0.86
+imageio==2.37.0
+statsmodels==0.14.4
+pyevtk==1.6.0
+natsort==7.1.1

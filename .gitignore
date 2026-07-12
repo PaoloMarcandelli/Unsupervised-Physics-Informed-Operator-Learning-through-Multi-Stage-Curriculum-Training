@@ -1,0 +1,26 @@
+# Datasets (regenerate with the *_dataset.py / ns_2d.py / finitevolume.py scripts)
+*.mat
+
+# Trained model checkpoints (regenerate by running train_model.py)
+**/model/
+**/*model*/
+*.pt
+*.pth
+
+# Python bytecode / caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Windows/WSL alternate-data-stream artifacts
+*Zone.Identifier*
+
+# Editor/OS cruft
+.DS_Store
+*.swp
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Cached spline-derivative kernels (regenerated on first run)
+Logger/buffers/*.dic
