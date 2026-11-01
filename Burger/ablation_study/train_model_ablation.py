@@ -181,7 +181,9 @@ def run_training(cfg, training, device,
             optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, SCHED_STEP, SCHED_GAMMA)
         else:
-            # multistage_nr: keep Adam moments, reset only LR schedule
+            # multistage_nr: keep Adam moments. Recreating StepLR does not restore
+            # LR (it starts from the current group lr), so the lr keeps decaying
+            # across phases; restoring it was tested and made no difference.
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, SCHED_STEP, SCHED_GAMMA)
 
         bd_hist, res_hist, test_hist = [], [], []

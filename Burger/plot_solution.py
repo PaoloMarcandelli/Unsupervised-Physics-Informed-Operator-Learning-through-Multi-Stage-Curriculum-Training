@@ -712,16 +712,24 @@ else:
 _sw_csv = os.path.join(_swdiag_loss_dir, 'stage_switch.csv')
 if os.path.isfile(_sw_csv):
     df_sw = pd.read_csv(_sw_csv)
+    # CSV scritti in append da run successive: tieni solo l'ultima run
+    # (un punto per tensore di parametri per transizione).
+    df_sw = (df_sw.sort_values('timestamp')
+                  .drop_duplicates(subset=['stage_from', 'stage_to', 'layer'], keep='last')
+                  .sort_index()
+                  .reset_index(drop=True))
 
-    # calcola R_lb se non già presente
+    # ricalcola R_lb (il CSV di run vecchie contiene la formula senza bias correction).
+    # Con la bias correction di Adam il primo passo dopo il reset è ~ eta*sign(g),
+    # quindi R_lb = sqrt(beta2)*sigma / ((1-beta1)*|g| + beta1*delta),
+    # con delta = median|m_hat|, sigma = median sqrt(v_hat) (bias-corrected).
     eps = 1e-12
     beta1 = df_sw['beta1'].to_numpy()
     beta2 = df_sw['beta2'].to_numpy()
     g     = np.abs(df_sw['gnew_median'].to_numpy())
     delta = df_sw['delta_median'].to_numpy()
     sigma = df_sw['sigma_median'].to_numpy()
-    R_lb  = (np.sqrt(beta2) * sigma * (1.0 - beta1)) / (
-             np.sqrt(1.0 - beta2) * ((1.0 - beta1) * g + beta1 * delta) + eps)
+    R_lb  = (np.sqrt(beta2) * sigma) / ((1.0 - beta1) * g + beta1 * delta + eps)
 
     # raccogli transizioni in ordine naturale
     pairs = []
@@ -775,8 +783,8 @@ if os.path.isfile(_sw_csv):
     _lims = [min(ax_c3.get_xlim()[0], ax_c3.get_ylim()[0]),
              max(ax_c3.get_xlim()[1], ax_c3.get_ylim()[1])]
     ax_c3.plot(_lims, _lims, 'k--', lw=0.9, alpha=0.5, label='y = x')
-    ax_c3.set_xlabel(r'$\beta_2\,\widehat{v}_{t-1}$', fontsize=14)
-    ax_c3.set_ylabel(r'$(1-\beta_2)\,\|g_t\|^2$', fontsize=14)
+    ax_c3.set_xlabel(r'$\beta_2\,\bar{s}_\ell^{\,2}$', fontsize=14)
+    ax_c3.set_ylabel(r'$(1-\beta_2)\,\bar{g}_\ell^{\,2}$', fontsize=14)
     ax_c3.tick_params(labelsize=12)
     ax_c3.legend(fontsize=12, framealpha=0.9)
     ax_c3.grid(True, which='both', alpha=0.25)

@@ -236,14 +236,15 @@ class StageDiagnostics:
         os.makedirs(os.path.dirname(csv_path), exist_ok=True)
         self.csv_path = csv_path
         self._cache = None
-        if not os.path.exists(csv_path):
-            import csv
-            with open(csv_path, 'w', newline='') as f:
-                csv.writer(f).writerow([
-                    'stage_from', 'stage_to', 'layer',
-                    'beta1', 'beta2', 'lr', 'eps',
-                    'delta_median', 'sigma_median', 'gnew_median',
-                    'ratio_num', 'ratio_den', 'R_lb', 'timestamp'])
+        # Always start a fresh file: appending would mix rows from previous
+        # runs in the same folder (duplicated layers in the R_lb plot).
+        import csv
+        with open(csv_path, 'w', newline='') as f:
+            csv.writer(f).writerow([
+                'stage_from', 'stage_to', 'layer',
+                'beta1', 'beta2', 'lr', 'eps',
+                'delta_median', 'sigma_median', 'gnew_median',
+                'ratio_num', 'ratio_den', 'R_lb', 'timestamp'])
 
     @staticmethod
     def _bias_correct(state, beta1, beta2, step):
@@ -282,8 +283,9 @@ class StageDiagnostics:
             sigma   = self._cache[name]['sigma_median']
             r_num   = (beta1 * delta) / ((1.0 - beta1) * (g_med + 1e-12))
             r_den   = (math.sqrt(1.0 - beta2) * g_med) / (math.sqrt(beta2) * (sigma + 1e-12))
-            denom   = math.sqrt(1.0 - beta2) * ((1.0 - beta1) * g_med + beta1 * delta) + 1e-12
-            R_lb    = (math.sqrt(beta2) * sigma * (1.0 - beta1)) / denom
+            # bias-corrected Adam: first step after reset ~ lr*sign(g)
+            denom   = (1.0 - beta1) * g_med + beta1 * delta + 1e-12
+            R_lb    = (math.sqrt(beta2) * sigma) / denom
             rows.append([stage_from, stage_to, name, beta1, beta2, lr, eps,
                          delta, sigma, g_med, r_num, r_den, R_lb, time.time()])
         with open(self.csv_path, 'a', newline='') as f:
@@ -337,7 +339,7 @@ def build_phases(training, model_type, epochs, ss_epochs, sup_epochs):
              'λ_sup': 0.5, 'λ_res': 1.5, **lam_reg},
         ]
         reset_optimizer = False
-        reset_scheduler = True   # LR resets to lr at each phase, moments do not
+        reset_scheduler = True   # StepLR is recreated, but it keeps the current (decayed) lr
 
     elif training == 'singlestage':
         # mirrors burger_phisfno_ss.py
@@ -539,7 +541,9 @@ if __name__ == '__main__':
             scheduler = torch.optim.lr_scheduler.StepLR(
                 optimizer, step_size=params.sched_step, gamma=params.sched_gamma)
         elif reset_scheduler:
-            # multistage_nr: keep Adam moments, but reset LR schedule
+            # multistage_nr: keep Adam moments. Recreating StepLR does not restore
+            # params.lr (it starts from the current group lr), so the lr keeps
+            # decaying across phases; restoring it was tested and made no difference.
             scheduler = torch.optim.lr_scheduler.StepLR(
                 optimizer, step_size=params.sched_step, gamma=params.sched_gamma)
 
